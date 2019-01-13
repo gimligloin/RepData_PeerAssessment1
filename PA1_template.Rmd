@@ -1,25 +1,85 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Project 1"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## Import data
 
+This is a project to explore activity monitoring data. We will import the data to a datafram
 
+```{r import, echo=TRUE}
+df=read.csv('D:/temp/repdata_data_activity/activity.csv')
+df$date=as.Date(df$date,"%Y-%M-%d")
+head(df)
 
-## What is mean total number of steps taken per day?
+```
+##Calculate mean 
 
+We will now calculate the mean number of steps taken per daytot
 
+```{r mean, echo=TRUE}
+totalsteps <- tapply(df$steps, df$date, sum)
+mean(totalsteps, na.rm = TRUE )
+median(totalsteps, na.rm = TRUE )
 
-## What is the average daily activity pattern?
+hist (totalsteps, breaks = 10)
 
+```
 
+##Generate average steps time series
+We will generate a plot showing average steps per 5 min time period.
 
-## Imputing missing values
+```{r time series plot, echo=TRUE}
+averagesteps <- aggregate(df$steps, by=list(df$interval), FUN = mean, na.rm = TRUE)
 
+plot(x=averagesteps$Group.1, y=averagesteps$x, type = 'l', xlab = 'Time', ylab = 'Average Steps', main = 'Average Steps Time Series')
 
+averagesteps[which.max(averagesteps$x),1]
 
-## Are there differences in activity patterns between weekdays and weekends?
+```
+
+##Impute missing numbers
+We will calculate and impute missing numbers
+
+``` {r missing numbers, echo= TRUE}
+
+##number of incompletecases
+sum(!complete.cases(df))
+dfcopy <- df
+library(dplyr)
+impute.mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+dfcopy<-dfcopy %>%
+  group_by(interval) %>%
+  mutate(
+    steps=impute.mean(steps)
+  )
+
+totalsteps <- tapply(dfcopy$steps, dfcopy$date, sum)
+mean(totalsteps)
+median(totalsteps)
+
+hist (totalsteps, breaks = 10)
+
+```
+
+#Weekends vs weekdays
+We will see if there is difference between activity pattern on weekdays and weekends
+
+``` {r weekends, echo=TRUE}
+
+dfcopy$weekend <- 'Weekday'
+
+for (i in 1:nrow(dfcopy)){
+  if (weekdays(dfcopy$date[i])=="Saturday" | weekdays(dfcopy$date[i])=="Sunday" ) {
+    dfcopy$weekend[i]<-'Weekend'
+  }
+}
+averagesteps <- aggregate(x=list(steps=dfcopy$steps), by=list(interval=dfcopy$interval, weekend=dfcopy$weekend), FUN = mean, na.rm = TRUE)
+library(ggplot2)
+qplot(x=interval, y=steps, data=averagesteps, geom="line", facets = weekend~.)
+
+```
